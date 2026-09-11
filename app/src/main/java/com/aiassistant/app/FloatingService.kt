@@ -43,7 +43,7 @@ class FloatingService : Service() {
                 NotificationManager.IMPORTANCE_LOW
             )
             val nm = getSystemService(NotificationManager::class.java)
-            nm.createNotificationChannel(channel)
+            nm?.createNotificationChannel(channel)
         }
         val notif = NotificationCompat.Builder(this, channelId)
             .setContentTitle("AI Assistant")
