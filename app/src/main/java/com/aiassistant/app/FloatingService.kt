@@ -1,8 +1,11 @@
 package com.aiassistant.app
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
 import android.graphics.PixelFormat
+import android.os.Build
 import android.os.IBinder
 import android.view.Gravity
 import android.view.WindowManager
@@ -10,6 +13,7 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -18,19 +22,40 @@ import kotlinx.coroutines.withContext
 class FloatingService : Service() {
 
     private lateinit var windowManager: WindowManager
-    private lateinit var floatingBtn: Button
+    private var floatingBtn: Button? = null
     private var chatView: LinearLayout? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
+        startAsForeground()
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         createFloatingButton()
     }
 
+    private fun startAsForeground() {
+        val channelId = "ai_assistant_channel"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channelId,
+                "AI Assistant",
+                NotificationManager.IMPORTANCE_LOW
+            )
+            val nm = getSystemService(NotificationManager::class.java)
+            nm.createNotificationChannel(channel)
+        }
+        val notif = NotificationCompat.Builder(this, channelId)
+            .setContentTitle("AI Assistant")
+            .setContentText("Floating button active")
+            .setSmallIcon(android.R.drawable.ic_menu_compass)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .build()
+        startForeground(1, notif)
+    }
+
     private fun createFloatingButton() {
-        floatingBtn = Button(this).apply {
+        val btn = Button(this).apply {
             text = "+"
             textSize = 24f
             setBackgroundColor(0xFFFFA500.toInt())
@@ -49,8 +74,9 @@ class FloatingService : Service() {
             y = 300
         }
 
-        floatingBtn.setOnClickListener { showChatWindow() }
-        windowManager.addView(floatingBtn, params)
+        btn.setOnClickListener { showChatWindow() }
+        windowManager.addView(btn, params)
+        floatingBtn = btn
     }
 
     private fun showChatWindow() {
@@ -85,7 +111,7 @@ class FloatingService : Service() {
             text = ""
             setTextColor(0xFFFFFFFF.toInt())
             textSize = 14f
-            setPadding(0, 20, 0, 0)
+            setPadding(0, 20, 0, 20)
         }
 
         val closeBtn = Button(this).apply {
@@ -110,7 +136,9 @@ class FloatingService : Service() {
         }
 
         closeBtn.setOnClickListener {
-            chatView?.let { windowManager.removeView(it) }
+            try {
+                chatView?.let { windowManager.removeView(it) }
+            } catch (_: Exception) {}
             chatView = null
         }
 
@@ -137,9 +165,13 @@ class FloatingService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        if (::floatingBtn.isInitialized) {
-            windowManager.removeView(floatingBtn)
-        }
-        chatView?.let { windowManager.removeView(it) }
+        try {
+            floatingBtn?.let { windowManager.removeView(it) }
+        } catch (_: Exception) {}
+        try {
+            chatView?.let { windowManager.removeView(it) }
+        } catch (_: Exception) {}
+        floatingBtn = null
+        chatView = null
     }
 }
